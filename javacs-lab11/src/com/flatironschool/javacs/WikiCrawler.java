@@ -1,11 +1,12 @@
 package com.flatironschool.javacs;
-
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 
+import org.jsoup.nodes.Node;
+import org.jsoup.nodes.TextNode;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
@@ -54,8 +55,30 @@ public class WikiCrawler {
 	 * @throws IOException
 	 */
 	public String crawl(boolean testing) throws IOException {
-        // FILL THIS IN!
-		return null;
+		 if (queue.isEmpty()) {
+	            return null;
+	        }
+		
+        if(testing){
+        	String url=queue.poll();
+        	Elements paragraphs=wf.readWikipedia(url);
+        	index.indexPage(url,paragraphs);
+        	queueInternalLinks(paragraphs);
+        	return url;
+        }
+        //testing equals false
+        else{
+        	String url=queue.poll();
+        	if(index.isIndexed(url)){
+        		return null;
+        	}
+        	else{
+        		Elements paragraphs=wf.fetchWikipedia(url);
+        		index.indexPage(url,paragraphs);
+        		queueInternalLinks(paragraphs);
+        		return url;
+        	}
+        }
 	}
 	
 	/**
@@ -65,7 +88,16 @@ public class WikiCrawler {
 	 */
 	// NOTE: absence of access level modifier means package-level
 	void queueInternalLinks(Elements paragraphs) {
-        // FILL THIS IN!
+		for(Element node:paragraphs){
+        	Elements n = node.select("a[href]");
+        	for (Element e: n) {
+           		String relURL = e.attr("href");
+            	if (relURL.startsWith("/wiki/")) {
+                	String absURL = e.attr("abs:href");
+                	queue.offer(absURL);
+            	}
+       		}
+        }
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -79,15 +111,18 @@ public class WikiCrawler {
 		// for testing purposes, load up the queue
 		Elements paragraphs = wf.fetchWikipedia(source);
 		wc.queueInternalLinks(paragraphs);
-
+		
+		
 		// loop until we index a new page
 		String res;
 		do {
-			res = wc.crawl(false);
+			res = wc.crawl(true);
 
             // REMOVE THIS BREAK STATEMENT WHEN crawl() IS WORKING
-            break;
+            
 		} while (res == null);
+		
+		System.out.println(wc.queueSize());
 		
 		Map<String, Integer> map = index.getCounts("the");
 		for (Entry<String, Integer> entry: map.entrySet()) {
